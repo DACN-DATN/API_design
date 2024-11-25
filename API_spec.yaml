@@ -19,6 +19,8 @@ tags:
     description: Endpoints for students to interact with content and track progress
   - name: Admin
     description: System administration endpoints for user and course management
+  - name: Payment
+    description: Endpoints for handling course payments and transactions
 
 components:
   securitySchemes:
@@ -309,6 +311,28 @@ components:
         level_id:
           type: string
           format: uuid
+          
+    Transaction:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        user_id:
+          type: string
+          format: uuid
+        course_id:
+          type: string
+          format: uuid
+        amount:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [pending, success, failed]
+        created_at:
+          type: string
+          format: date-time
 
     CategoryManagement:
       type: object
@@ -594,6 +618,9 @@ paths:
                 theme_id:
                   type: string
                   format: uuid
+                price:
+                  type: number
+                  format: float
       responses:
         '201':
           description: Course created successfully.
@@ -1526,6 +1553,117 @@ paths:
                       description: Log message details
         '403':
           description: Forbidden - Only admins can view system logs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  
+  # --- Payment Endpoints ---
+  /payment/courses/{courseId}:
+    post:
+      tags: [Payment]
+      summary: Initiate payment for a course
+      description: Students can initiate payment for a specific course.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: courseId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                payment_method:
+                  type: string
+                  enum: [credit_card, paypal]
+                  description: The selected payment method.
+      responses:
+        '200':
+          description: Payment initiated successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  transaction_id:
+                    type: string
+                    format: uuid
+                  status:
+                    type: string
+                    enum: [pending, success, failed]
+        '400':
+          description: Invalid payment details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Course not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /payment/transactions/{transactionId}:
+    get:
+      tags: [Payment]
+      summary: Retrieve transaction details
+      description: Get the details of a specific transaction.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: transactionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Transaction details retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Transaction'
+        '404':
+          description: Transaction not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /users/{userId}/transactions:
+    get:
+      tags: [Payment]
+      summary: List user transactions
+      description: Retrieve a list of all transactions made by a specific user.
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: List of user transactions retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Transaction'
+        '404':
+          description: User not found.
           content:
             application/json:
               schema:
